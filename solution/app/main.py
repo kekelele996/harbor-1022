@@ -289,9 +289,9 @@ def shrink_open_bounds(poly, lower, upper):
 FAREY_ORDER = 64
 
 
-def farey_sequence(lower, upper):
+def farey_sequence(lower, upper, order=FAREY_ORDER):
     values = set()
-    for denominator in range(1, FAREY_ORDER + 1):
+    for denominator in range(1, order + 1):
         start = ceil(lower * denominator)
         end = (upper * denominator).numerator // (upper * denominator).denominator
         for numerator in range(start, end + 1):
@@ -402,10 +402,18 @@ def build_report(poly, lower, upper):
             roots.append((root, root, multiplicity))
             radical = divide_linear(radical, root)
     intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)
-    farey = farey_sequence(lower, upper)
+    point_roots = [root for root, _, _ in roots]
     for left, right in intervals:
-        cell = farey_bracket(radical, left, right, farey)
-        roots.append((cell[0], cell[1], multiplicity_for(factors, left, right)))
+        order = FAREY_ORDER
+        while True:
+            cell = farey_bracket(radical, left, right, farey_sequence(lower, upper, order))
+            chain = sturm_chain(radical)
+            isolated = root_count(chain, cell[0], cell[1]) == 1
+            shares_point = any(cell[0] <= point <= cell[1] for point in point_roots)
+            if isolated and not shares_point:
+                break
+            order *= 2
+        roots.append((cell[0], cell[1], multiplicity_for(factors, cell[0], cell[1])))
     roots.sort(key=lambda item: (item[0], item[1]))
     output = [
         {

@@ -132,9 +132,9 @@ def integer_from_factors(*factors):
     return [int(coefficient * denominator) for coefficient in result]
 
 
-def farey_fractions(lower=Fraction(1), upper=Fraction(2)):
+def farey_fractions(lower=Fraction(1), upper=Fraction(2), order=FAREY_ORDER):
     values = set()
-    for denominator in range(1, FAREY_ORDER + 1):
+    for denominator in range(1, order + 1):
         start = ceil(lower * denominator)
         end = (upper * denominator).numerator // (upper * denominator).denominator
         for numerator in range(start, end + 1):
@@ -146,9 +146,9 @@ def farey_fractions(lower=Fraction(1), upper=Fraction(2)):
     return sorted(values)
 
 
-def farey_bracket_for_value(value, lower=Fraction(1), upper=Fraction(2)):
+def farey_bracket_for_value(value, lower=Fraction(1), upper=Fraction(2), order=FAREY_ORDER):
     decimals = [(fraction, Decimal(fraction.numerator) / Decimal(fraction.denominator))
-                for fraction in farey_fractions(lower, upper)]
+                for fraction in farey_fractions(lower, upper, order)]
     below = max((item for item in decimals if item[1] <= value), key=lambda item: item[1])
     above = min((item for item in decimals if item[1] >= value), key=lambda item: item[1])
     return below[0], above[0]
@@ -176,6 +176,37 @@ def assert_farey_profile(report, values):
         assert actual_lower == lower and actual_upper == upper
         assert multiplicity == 1
         assert Decimal(lower.numerator) / Decimal(lower.denominator) <= value <= Decimal(upper.numerator) / Decimal(upper.denominator)
+
+
+def adaptive_farey_bracket(value, point_roots, lower=Fraction(1), upper=Fraction(2)):
+    order = FAREY_ORDER
+    while True:
+        low, high = farey_bracket_for_value(value, lower, upper, order)
+        if not any(low <= point <= high for point in point_roots):
+            return low, high, order
+        order *= 2
+
+
+def assert_adaptive_farey_profile(report, values, point_roots, lower=Fraction(1), upper=Fraction(2)):
+    expected = []
+    for value in sorted(values):
+        if any(value == Decimal(point.numerator) / Decimal(point.denominator) for point in point_roots):
+            expected.append((value, value, 3, None))
+        else:
+            low, high, order = adaptive_farey_bracket(value, point_roots, lower, upper)
+            expected.append((value, low, high, 1, order))
+    roots = report["roots"]
+    assert len(roots) == len(expected)
+    for item, expected_item in zip(roots, expected):
+        value = expected_item[0]
+        if len(expected_item) == 4:
+            assert canonical_fraction(item["lower"]) == value
+            assert canonical_fraction(item["upper"]) == value
+            assert item["multiplicity"] == 3
+        else:
+            assert canonical_fraction(item["lower"]) == expected_item[1]
+            assert canonical_fraction(item["upper"]) == expected_item[2]
+            assert item["multiplicity"] == 1
 
 
 # ---------- gate：入口与契约，不计分 ----------
@@ -286,6 +317,22 @@ def test_clustered_irrational_roots_use_farey():
     report = candidate_report({"coefficients": integer_from_factors([-2, 0, 1], coefficient), "interval": [1, 2]})
     sqrt_two = Decimal(2).sqrt()
     assert_farey_profile(report, [sqrt_two, sqrt_two + Decimal("0.005")])
+
+
+def test_farey_refines_past_point_root():
+    """「如果一个 Farey 单元还包含别的根，就继续提高阶数，直到每个单元只含一个根」"""
+    quadratic = [Fraction(-41, 25), Fraction(-6, 5), Fraction(1)]
+    factors = [[-2, 1], [-2, 1], [-2, 1], quadratic]
+    report = candidate_report({"coefficients": integer_from_factors(*factors), "interval": [-8, 3]})
+    three_fifths = Decimal(3) / Decimal(5)
+    sqrt_two = Decimal(2).sqrt()
+    assert_adaptive_farey_profile(
+        report,
+        [Decimal(2), three_fifths - sqrt_two, three_fifths + sqrt_two],
+        [Fraction(2)],
+        lower=Fraction(-8),
+        upper=Fraction(3),
+    )
 
 
 def test_sqrt_two_uses_farey_bracket():

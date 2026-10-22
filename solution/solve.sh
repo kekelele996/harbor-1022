@@ -20,8 +20,8 @@ REVERT = {
         "factors = legacy_factors(poly)",
     ),
     "difficulty_3": (
-        "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)\n    farey = farey_sequence(lower, upper)\n    for left, right in intervals:\n        cell = farey_bracket(radical, left, right, farey)",
-        "intervals = collect_intervals(radical, lower, upper, isolate_by_signs)\n    for left, right in intervals:\n        cell = (left, right)",
+        "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)\n    point_roots = [root for root, _, _ in roots]\n    for left, right in intervals:\n        order = FAREY_ORDER\n        while True:\n            cell = farey_bracket(radical, left, right, farey_sequence(lower, upper, order))\n            chain = sturm_chain(radical)\n            isolated = root_count(chain, cell[0], cell[1]) == 1\n            shares_point = any(cell[0] <= point <= cell[1] for point in point_roots)\n            if isolated and not shares_point:\n                break\n            order *= 2\n        roots.append((cell[0], cell[1], multiplicity_for(factors, cell[0], cell[1])))",
+        "intervals = collect_intervals(radical, lower, upper, isolate_by_signs)\n    for left, right in intervals:\n        roots.append((left, right, multiplicity_for(factors, left, right)))",
     ),
 }
 skip = [item for item in os.environ.get("SKIP", "").split(",") if item]

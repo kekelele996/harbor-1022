@@ -42,28 +42,32 @@
       "rationale": "重数分组：五次重根"
     },
     "test_outputs.py::test_two_nearby_irrational_roots_use_farey": {
-      "weight": 0.06,
+      "weight": 0.05,
       "rationale": "64 阶 Farey：相邻无理根，难点合计 0.30"
     },
     "test_outputs.py::test_clustered_irrational_roots_use_farey": {
-      "weight": 0.06,
+      "weight": 0.05,
       "rationale": "64 阶 Farey：窄无理根簇"
     },
     "test_outputs.py::test_sqrt_two_uses_farey_bracket": {
-      "weight": 0.06,
+      "weight": 0.05,
       "rationale": "64 阶 Farey：sqrt(2) 邻接分数"
     },
     "test_outputs.py::test_sqrt_three_uses_farey_bracket": {
-      "weight": 0.06,
+      "weight": 0.05,
       "rationale": "64 阶 Farey：sqrt(3) 邻接分数"
     },
     "test_outputs.py::test_three_irrational_roots_in_narrow_cluster": {
-      "weight": 0.06,
+      "weight": 0.05,
       "rationale": "64 阶 Farey：三根窄簇"
     },
     "test_outputs.py::test_rational_root_above_old_denominator_limit_is_point": {
       "weight": 0.04,
       "rationale": "有理根分母 1000003，不能被旧的 1000000 阈值漏掉"
+    },
+    "test_outputs.py::test_farey_refines_past_point_root": {
+      "weight": 0.05,
+      "rationale": "Farey 单元包含点根时提高阶数"
     }
   }
 }
