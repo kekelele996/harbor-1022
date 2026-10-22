@@ -12,8 +12,8 @@ from pathlib import Path
 
 REVERT = {
     "difficulty_1": (
-        "for root in rational_roots_of_factor(factor):",
-        "for root in []:",
+        "D1_ENABLED = True",
+        "D1_ENABLED = False",
     ),
     "difficulty_2": (
         "factors = square_free_factors(poly)",

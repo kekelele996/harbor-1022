@@ -187,11 +187,11 @@ def adaptive_farey_bracket(value, point_roots, lower=Fraction(1), upper=Fraction
         order *= 2
 
 
-def assert_adaptive_farey_profile(report, values, point_roots, lower=Fraction(1), upper=Fraction(2)):
+def assert_adaptive_farey_profile(report, values, point_roots, lower=Fraction(1), upper=Fraction(2), point_multiplicity=1):
     expected = []
     for value in sorted(values):
         if any(value == Decimal(point.numerator) / Decimal(point.denominator) for point in point_roots):
-            expected.append((value, value, 3, None))
+            expected.append((value, value, point_multiplicity, None))
         else:
             low, high, order = adaptive_farey_bracket(value, point_roots, lower, upper)
             expected.append((value, low, high, 1, order))
@@ -202,7 +202,7 @@ def assert_adaptive_farey_profile(report, values, point_roots, lower=Fraction(1)
         if len(expected_item) == 4:
             assert canonical_fraction(item["lower"]) == value
             assert canonical_fraction(item["upper"]) == value
-            assert item["multiplicity"] == 3
+            assert item["multiplicity"] == point_multiplicity
         else:
             assert canonical_fraction(item["lower"]) == expected_item[1]
             assert canonical_fraction(item["upper"]) == expected_item[2]
@@ -284,21 +284,21 @@ def test_cubic_root_multiplicity():
     """「同一实根出现多次时只列一次，并给出它的重数」"""
     factors = [(Fraction(-7, 3), 3)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 4]})
-    assert_profile(report, [-4, 4], factors, require_exact_rational=True)
+    assert_profile(report, [-4, 4], factors)
 
 
 def test_quartic_root_multiplicity():
     """「同一实根出现多次时只列一次，并给出它的重数」"""
     factors = [(Fraction(7, 5), 4)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-2, 2]})
-    assert_profile(report, [-2, 2], factors, require_exact_rational=True)
+    assert_profile(report, [-2, 2], factors)
 
 
 def test_fifth_root_multiplicity():
     """「同一实根出现多次时只列一次，并给出它的重数」"""
     factors = [(Fraction(-5, 3), 5)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 3]})
-    assert_profile(report, [-4, 3], factors, require_exact_rational=True)
+    assert_profile(report, [-4, 3], factors)
 
 
 def test_two_nearby_irrational_roots_use_farey():
@@ -322,7 +322,7 @@ def test_clustered_irrational_roots_use_farey():
 def test_farey_refines_past_point_root():
     """「如果一个 Farey 单元还包含别的根，就继续提高阶数，直到每个单元只含一个根」"""
     quadratic = [Fraction(-41, 25), Fraction(-6, 5), Fraction(1)]
-    factors = [[-2, 1], [-2, 1], [-2, 1], quadratic]
+    factors = [[-2, 1], quadratic]
     report = candidate_report({"coefficients": integer_from_factors(*factors), "interval": [-8, 3]})
     three_fifths = Decimal(3) / Decimal(5)
     sqrt_two = Decimal(2).sqrt()

@@ -9,6 +9,7 @@ import json
 import sys
 
 RATIONAL_DENOMINATOR_LIMIT = 10**12
+D1_ENABLED = True
 
 
 def trim(poly):
@@ -359,7 +360,10 @@ def dyadic_cell(poly, left, right):
 def collect_intervals(poly, lower, upper, isolator):
     lower = Fraction(lower)
     upper = Fraction(upper)
-    work, boundary = peel_endpoints(poly, lower, upper)
+    if D1_ENABLED:
+        work, boundary = peel_endpoints(poly, lower, upper)
+    else:
+        work, boundary = poly, []
     if degree(work) < 1:
         return sorted(boundary)
     if boundary:
@@ -394,13 +398,14 @@ def build_report(poly, lower, upper):
         radical = multiply(radical, factor)
     roots = []
     seen = set()
-    for factor, multiplicity in factors:
-        for root in rational_roots_of_factor(factor):
-            if not (lower <= root <= upper) or root in seen:
-                continue
-            seen.add(root)
-            roots.append((root, root, multiplicity))
-            radical = divide_linear(radical, root)
+    if D1_ENABLED:
+        for factor, multiplicity in factors:
+            for root in rational_roots_of_factor(factor):
+                if not (lower <= root <= upper) or root in seen:
+                    continue
+                seen.add(root)
+                roots.append((root, root, multiplicity))
+                radical = divide_linear(radical, root)
     intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)
     point_roots = [root for root, _, _ in roots]
     for left, right in intervals:
