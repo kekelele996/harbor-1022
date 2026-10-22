@@ -6,11 +6,11 @@
   ],
   "tests": {
     "test_outputs.py::test_rational_root_one_ninety_seventh_is_point": {
-      "weight": 0.07,
+      "weight": 0.06,
       "rationale": "精确有理根：分母 97，必须输出点区间；难点合计 0.40"
     },
     "test_outputs.py::test_rational_root_five_one_hundred_first_is_point": {
-      "weight": 0.07,
+      "weight": 0.06,
       "rationale": "精确有理根：分母 101"
     },
     "test_outputs.py::test_rational_root_negative_thirteen_one_hundred_third_is_point": {
@@ -18,11 +18,11 @@
       "rationale": "精确有理根：负分子与分母 103"
     },
     "test_outputs.py::test_lower_endpoint_root_is_included": {
-      "weight": 0.07,
+      "weight": 0.06,
       "rationale": "闭区间左端点根必须精确列出"
     },
     "test_outputs.py::test_upper_endpoint_root_is_included": {
-      "weight": 0.07,
+      "weight": 0.06,
       "rationale": "闭区间右端点根必须精确列出"
     },
     "test_outputs.py::test_both_endpoint_roots_are_included": {
@@ -60,6 +60,10 @@
     "test_outputs.py::test_three_irrational_roots_in_narrow_cluster": {
       "weight": 0.06,
       "rationale": "64 阶 Farey：三根窄簇"
+    },
+    "test_outputs.py::test_rational_root_above_old_denominator_limit_is_point": {
+      "weight": 0.04,
+      "rationale": "有理根分母 1000003，不能被旧的 1000000 阈值漏掉"
     }
   }
 }

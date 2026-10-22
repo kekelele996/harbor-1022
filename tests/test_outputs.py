@@ -113,7 +113,7 @@ def assert_profile(report, search_interval, expected, require_exact_rational=Fal
         matches = [item for item in parsed if item[0] <= root <= item[1]]
         assert len(matches) == 1
         assert matches[0][2] == multiplicity
-        if require_exact_rational and root.denominator <= 1_000_000:
+        if require_exact_rational:
             assert matches[0][0] == root and matches[0][1] == root
     assert report["multiplicity_sum"] == sum(multiplicity for _, multiplicity in expected)
 
@@ -219,6 +219,13 @@ def test_rational_root_negative_thirteen_one_hundred_third_is_point():
 
 # ---------- 难点 2：闭区间端点 ----------
 
+def test_rational_root_above_old_denominator_limit_is_point():
+    """「只要根是有理数，就必须输出精确点区间，即 `lower == upper`」"""
+    factors = [(Fraction(1000001, 1000003), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 2]})
+    assert_profile(report, [0, 2], factors, require_exact_rational=True)
+
+
 def test_lower_endpoint_root_is_included():
     """「搜索区间是闭区间，落在左端点或右端点的根也要列出」「同一个输入跑两次，输出要一模一样」"""
     factors = [(Fraction(1), 1), (Fraction(3), 1)]
@@ -246,21 +253,21 @@ def test_cubic_root_multiplicity():
     """「同一实根出现多次时只列一次，并给出它的重数」"""
     factors = [(Fraction(-7, 3), 3)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 4]})
-    assert_profile(report, [-4, 4], factors)
+    assert_profile(report, [-4, 4], factors, require_exact_rational=True)
 
 
 def test_quartic_root_multiplicity():
     """「同一实根出现多次时只列一次，并给出它的重数」"""
     factors = [(Fraction(7, 5), 4)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-2, 2]})
-    assert_profile(report, [-2, 2], factors)
+    assert_profile(report, [-2, 2], factors, require_exact_rational=True)
 
 
 def test_fifth_root_multiplicity():
     """「同一实根出现多次时只列一次，并给出它的重数」"""
     factors = [(Fraction(-5, 3), 5)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 3]})
-    assert_profile(report, [-4, 3], factors)
+    assert_profile(report, [-4, 3], factors, require_exact_rational=True)
 
 
 def test_two_nearby_irrational_roots_use_farey():

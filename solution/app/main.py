@@ -8,7 +8,7 @@ from math import ceil, gcd, isqrt, lcm
 import json
 import sys
 
-RATIONAL_DENOMINATOR_LIMIT = 1_000_000
+RATIONAL_DENOMINATOR_LIMIT = 10**12
 
 
 def trim(poly):
@@ -130,7 +130,7 @@ def rational_roots_of_factor(poly):
     leading = int(primitive[-1])
     if constant == 0 or leading == 0:
         return roots
-    numerators = divisors_up_to(constant, 10**6)
+    numerators = divisors_up_to(constant, 10**12)
     denominators = divisors_up_to(leading, RATIONAL_DENOMINATOR_LIMIT)
     candidates = {Fraction(sign * numerator, denominator)
                   for numerator in numerators
