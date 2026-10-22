@@ -118,14 +118,14 @@ def assert_profile(report, search_interval, expected):
 # ---------- gate：入口与契约，不计分 ----------
 
 def test_output_has_exact_schema():
-    """「程序向标准输出写一个 JSON 对象」"""
+    """「程序向标准输出写一个 JSON 对象」「`roots` 的每一项只含三个字段」「每个 `[lower, upper]` 都必须落在 `[L, R]` 内，并且恰好包含一个不同的实根；相邻区间可以首尾相接，但不能交叠」"""
     report = candidate_report({"coefficients": [-3, 0, 1], "interval": [-2, 2]})
     assert set(report) == {"roots", "distinct_count", "multiplicity_sum"}
     assert all(set(item) == {"lower", "upper", "multiplicity"} for item in report["roots"])
 
 
 def test_wrong_argument_count_exits_2():
-    """「参数个数不对时退出码为 2，不输出 JSON」"""
+    """「参数个数不对时退出码为 2，不输出 JSON」「输入文件打不开、JSON 结构不对或数值不合法时，也以退出码 2 结束，不向标准输出写内容」"""
     proc = run_candidate()
     assert proc.returncode == 2
     assert proc.stdout.strip() == ""
@@ -134,7 +134,7 @@ def test_wrong_argument_count_exits_2():
 # ---------- 难点 1：重数分组 ----------
 
 def test_cubic_root_multiplicity():
-    """「同一实根出现多次时只列一次，并给出它的重数」"""
+    """「同一实根出现多次时只列一次，并给出它的重数」「区间端点用最简有理数表示：分母为正，整数不写 `/1`」"""
     factors = [(Fraction(-7, 3), 3)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 4]})
     assert_profile(report, [-4, 4], factors)
@@ -157,7 +157,7 @@ def test_fifth_root_multiplicity():
 # ---------- 难点 2：闭区间端点 ----------
 
 def test_lower_endpoint_root_is_included():
-    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
+    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」「同一个输入跑两次，输出要一模一样」"""
     factors = [(Fraction(1), 1), (Fraction(3), 1)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [1, 4]})
     assert_profile(report, [1, 4], factors)
