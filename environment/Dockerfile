@@ -3,6 +3,15 @@ FROM adminfather/benzhi-claude-code2:20260919@sha256:6bc4ad09b1c450579b25e61e7c7
 
 # 镜像默认用户是 node，入口脚本会等待交互参数；Harbor 需要 root 和常驻命令。
 USER root
+
+# 清空基础镜像自带的 Anthropic 网关配置，避免覆盖运行时的模型连接参数。
+ENV ANTHROPIC_BASE_URL="" \
+    ANTHROPIC_MODEL="" \
+    ANTHROPIC_DEFAULT_OPUS_MODEL="" \
+    ANTHROPIC_DEFAULT_SONNET_MODEL="" \
+    ANTHROPIC_DEFAULT_HAIKU_MODEL="" \
+    CLAUDE_CODE_SUBAGENT_MODEL=""
+
 ENTRYPOINT []
 CMD ["sleep", "infinity"]
 
