@@ -20,8 +20,8 @@ REVERT = {
         "factors = legacy_factors(poly)",
     ),
     "difficulty_3": (
-        "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)",
-        "intervals = collect_intervals(radical, lower, upper, isolate_by_signs)",
+        "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)\n    for left, right in intervals:\n        cell = dyadic_cell(radical, left, right)",
+        "intervals = collect_intervals(radical, lower, upper, isolate_by_signs)\n    for left, right in intervals:\n        cell = (left, right)",
     ),
 }
 skip = [item for item in os.environ.get("SKIP", "").split(",") if item]

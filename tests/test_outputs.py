@@ -6,7 +6,7 @@
 
 from fractions import Fraction
 import json
-from math import lcm
+from math import isqrt, lcm
 import os
 import signal
 import subprocess
@@ -117,6 +117,23 @@ def assert_profile(report, search_interval, expected, require_exact_rational=Fal
     assert report["multiplicity_sum"] == sum(multiplicity for _, multiplicity in expected)
 
 
+GRID_SCALE = 1 << 40
+
+
+def assert_grid_cell(report, expected_lower, expected_upper):
+    roots = report["roots"]
+    assert len(roots) == 1
+    item = roots[0]
+    assert canonical_fraction(item["lower"]) == expected_lower
+    assert canonical_fraction(item["upper"]) == expected_upper
+    assert item["multiplicity"] == 1
+
+
+def square_root_cell(radicand):
+    index = isqrt(radicand * GRID_SCALE * GRID_SCALE)
+    return Fraction(index, GRID_SCALE), Fraction(index + 1, GRID_SCALE)
+
+
 # ---------- gate：入口与契约，不计分 ----------
 
 def test_output_has_exact_schema():
@@ -216,6 +233,18 @@ def test_clustered_roots_near_one():
     factors = [(1 - epsilon, 1), (1 + epsilon, 1)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 2]})
     assert_profile(report, [0, 2], factors)
+
+
+def test_sqrt_two_uses_dyadic_cell():
+    """「其余根使用固定的 2^-40 网格：`lower = m / 2^40`，`upper = (m + 1) / 2^40`，两者必须是相邻网格点」"""
+    report = candidate_report({"coefficients": [-2, 0, 1], "interval": [1, 2]})
+    assert_grid_cell(report, *square_root_cell(2))
+
+
+def test_sqrt_three_uses_dyadic_cell():
+    """「其余根使用固定的 2^-40 网格：`lower = m / 2^40`，`upper = (m + 1) / 2^40`，两者必须是相邻网格点」"""
+    report = candidate_report({"coefficients": [-3, 0, 1], "interval": [1, 2]})
+    assert_grid_cell(report, *square_root_cell(3))
 
 
 def test_three_roots_in_narrow_cluster():

@@ -286,6 +286,33 @@ def shrink_open_bounds(poly, lower, upper):
     return new_lower, new_upper
 
 
+GRID_BITS = 40
+
+
+def dyadic_cell(poly, left, right):
+    """把一个单一实根区间收紧到固定的 2^-40 网格单元。"""
+    scale = 1 << GRID_BITS
+    chain = sturm_chain(poly)
+    left_scaled = Fraction(left) * scale
+    right_scaled = Fraction(right) * scale
+    low = left_scaled.numerator // left_scaled.denominator
+    high = right_scaled.numerator // right_scaled.denominator + 1
+    while high - low > 1:
+        middle = (low + high) // 2
+        point = Fraction(middle, scale)
+        if evaluate(poly, point) == 0:
+            return point, point
+        if root_count(chain, Fraction(left), point) == 0:
+            low = middle
+        else:
+            high = middle
+    for index in (low, low + 1):
+        point = Fraction(index, scale)
+        if evaluate(poly, point) == 0:
+            return point, point
+    return Fraction(low, scale), Fraction(low + 1, scale)
+
+
 def collect_intervals(poly, lower, upper, isolator):
     lower = Fraction(lower)
     upper = Fraction(upper)
@@ -333,7 +360,8 @@ def build_report(poly, lower, upper):
             radical = divide_linear(radical, root)
     intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)
     for left, right in intervals:
-        roots.append((left, right, multiplicity_for(factors, left, right)))
+        cell = dyadic_cell(radical, left, right)
+        roots.append((cell[0], cell[1], multiplicity_for(factors, left, right)))
     roots.sort(key=lambda item: (item[0], item[1]))
     output = [
         {

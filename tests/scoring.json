@@ -42,16 +42,24 @@
       "rationale": "重数分组：五次重根"
     },
     "test_outputs.py::test_symmetric_roots_one_trillionth_apart": {
-      "weight": 0.1,
+      "weight": 0.06,
       "rationale": "极近根隔离：对称双根，难点合计 0.30"
     },
     "test_outputs.py::test_clustered_roots_near_one": {
-      "weight": 0.1,
+      "weight": 0.06,
       "rationale": "极近根隔离：十亿分之一间隔"
     },
     "test_outputs.py::test_three_roots_in_narrow_cluster": {
-      "weight": 0.1,
+      "weight": 0.06,
       "rationale": "极近根隔离：三根簇"
+    },
+    "test_outputs.py::test_sqrt_two_uses_dyadic_cell": {
+      "weight": 0.06,
+      "rationale": "2^-40 网格：sqrt(2) 的精确单元"
+    },
+    "test_outputs.py::test_sqrt_three_uses_dyadic_cell": {
+      "weight": 0.06,
+      "rationale": "2^-40 网格：sqrt(3) 的精确单元"
     }
   }
 }
