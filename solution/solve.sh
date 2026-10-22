@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
-# 参考解：用 solution/app/ 下的完整实现替换 /app 里同名文件。
-# 每个难点的改法、依据和独立复算写在 NOTES.md；这里只负责安装和留一法开关。
-#
-# 留一法：HTB_SKIP=<难点 id>[,<难点 id>...] 时把这些难点的修复退回原写法，其余照装。
-#   harbor run -p <包> -a oracle --ae HTB_SKIP=difficulty_1
-# 正式 Oracle 不设这个变量。退回用精确片段替换，每段必须恰好命中一次，否则直接失败，
-# 免得参考解改了而留一法悄悄失效。
+# 参考解：安装完整实现；HTB_SKIP 将指定难点的修复退回初始写法。
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -18,16 +12,16 @@ from pathlib import Path
 
 REVERT = {
     "difficulty_1": (
-        'mean = float(Decimal(repr(total / count)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))',
-        "mean = int(total / count * 100) / 100",
+        "factors = square_free_factors(poly)",
+        "factors = legacy_factors(poly)",
     ),
     "difficulty_2": (
-        "if best is None or value > best or (value == best and rid < max_id):",
-        "if best is None or value >= best:",
+        "work, boundary = peel_endpoints(poly, lower, upper)",
+        "work, boundary = poly, []",
     ),
     "difficulty_3": (
-        'values = [(item["id"], item["value"]) for item in readings if item["value"] is not None]',
-        'values = [(item["id"], item["value"] or 0) for item in readings]',
+        "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)",
+        "intervals = collect_intervals(radical, lower, upper, isolate_by_signs)",
     ),
 }
 skip = [item for item in os.environ.get("SKIP", "").split(",") if item]

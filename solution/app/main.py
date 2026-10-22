@@ -1,32 +1,303 @@
-"""测点读数汇总（骨架示例的参考实现，出题时整份替换）。
+"""整数多项式实根清单的参考实现。
 
-用法：python3 /app/main.py <readings.json>
+用法：python3 /app/main.py <input.json>
 """
 
+from fractions import Fraction
 import json
 import sys
-from decimal import ROUND_HALF_UP, Decimal
 
 
-def summarize(readings):
-    values = [(item["id"], item["value"]) for item in readings if item["value"] is not None]
-    count = len(values)
-    total = sum(value for _, value in values)
-    mean = float(Decimal(repr(total / count)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-    max_id, best = None, None
-    for rid, value in values:
-        if best is None or value > best or (value == best and rid < max_id):
-            max_id, best = rid, value
-    return {"count": count, "mean": mean, "max_id": max_id}
+def trim(poly):
+    poly = list(poly)
+    while len(poly) > 1 and poly[-1] == 0:
+        poly.pop()
+    return poly
+
+
+def degree(poly):
+    poly = trim(poly)
+    return len(poly) - 1 if poly != [Fraction(0)] else -1
+
+
+def derivative(poly):
+    if len(poly) <= 1:
+        return [Fraction(0)]
+    return trim([Fraction(i) * poly[i] for i in range(1, len(poly))])
+
+
+def divmod_poly(numerator, denominator):
+    numerator = trim(numerator)
+    denominator = trim(denominator)
+    if denominator == [Fraction(0)]:
+        raise ValueError("zero divisor")
+    quotient = [Fraction(0)] * max(0, len(numerator) - len(denominator) + 1)
+    while numerator != [Fraction(0)] and len(numerator) >= len(denominator):
+        shift = len(numerator) - len(denominator)
+        factor = numerator[-1] / denominator[-1]
+        quotient[shift] += factor
+        for index, value in enumerate(denominator):
+            numerator[index + shift] -= factor * value
+        numerator = trim(numerator)
+    return trim(quotient), numerator
+
+
+def div_exact(numerator, denominator):
+    quotient, remainder = divmod_poly(numerator, denominator)
+    if remainder != [Fraction(0)]:
+        raise ArithmeticError("non-exact polynomial division")
+    return quotient
+
+
+def multiply(left, right):
+    result = [Fraction(0)] * (len(left) + len(right) - 1)
+    for i, a_value in enumerate(left):
+        for j, b_value in enumerate(right):
+            result[i + j] += a_value * b_value
+    return trim(result)
+
+
+def monic(poly):
+    poly = trim(poly)
+    if poly == [Fraction(0)]:
+        return poly
+    lead = poly[-1]
+    return [value / lead for value in poly]
+
+
+def gcd_poly(left, right):
+    left = trim(left)
+    right = trim(right)
+    while right != [Fraction(0)]:
+        _, remainder = divmod_poly(left, right)
+        left, right = right, remainder
+    return monic(left)
+
+
+def evaluate(poly, value):
+    result = Fraction(0)
+    for coefficient in reversed(poly):
+        result = result * value + coefficient
+    return result
+
+
+def divide_linear(poly, root):
+    return div_exact(poly, [-root, Fraction(1)])
+
+
+def legacy_factors(poly):
+    common = gcd_poly(poly, derivative(poly))
+    radical = div_exact(poly, common)
+    multiplier = 2 if degree(common) > 0 else 1
+    return [(radical, multiplier)]
+
+
+def square_free_factors(poly):
+    common = gcd_poly(poly, derivative(poly))
+    radical = div_exact(poly, common)
+    remaining = monic(radical)
+    groups = []
+    multiplicity = 1
+    while degree(remaining) >= 1:
+        shared = gcd_poly(common, remaining)
+        current = div_exact(remaining, shared)
+        if degree(current) >= 1:
+            groups.append((monic(current), multiplicity))
+        remaining = monic(shared)
+        common = div_exact(common, shared)
+        multiplicity += 1
+    return groups
+
+
+def scale_positive(poly):
+    poly = trim(poly)
+    if poly == [Fraction(0)]:
+        return poly
+    scale = abs(poly[-1])
+    return [value / scale for value in poly]
+
+
+def sturm_chain(poly):
+    first = scale_positive(poly)
+    if degree(first) < 1:
+        return [first]
+    chain = [first, scale_positive(derivative(first))]
+    while degree(chain[-1]) >= 1:
+        _, remainder = divmod_poly(chain[-2], chain[-1])
+        if remainder == [Fraction(0)]:
+            break
+        chain.append(scale_positive([-value for value in remainder]))
+    return chain
+
+
+def variations(chain, point):
+    signs = []
+    for poly in chain:
+        value = evaluate(poly, point)
+        if value < 0:
+            signs.append(-1)
+        elif value > 0:
+            signs.append(1)
+    return sum(1 for left, right in zip(signs, signs[1:]) if left != right)
+
+
+def root_count(chain, lower, upper):
+    return variations(chain, lower) - variations(chain, upper)
+
+
+def isolate_by_signs(poly, lower, upper):
+    intervals = []
+    epsilon = Fraction(1, 1_000_000_000)
+
+    def walk(current, left, right):
+        left_value = evaluate(current, left)
+        right_value = evaluate(current, right)
+        if left_value == 0 or right_value == 0:
+            return
+        if left_value * right_value > 0:
+            return
+        if right - left <= epsilon:
+            intervals.append((left, right))
+            return
+        middle = (left + right) / 2
+        middle_value = evaluate(current, middle)
+        if middle_value == 0:
+            intervals.append((middle, middle))
+            reduced = divide_linear(current, middle)
+            walk(reduced, left, middle)
+            walk(reduced, middle, right)
+            return
+        walk(current, left, middle)
+        walk(current, middle, right)
+
+    if degree(poly) >= 1:
+        walk(poly, Fraction(lower), Fraction(upper))
+    return sorted(intervals)
+
+
+def isolate_by_sturm(poly, lower, upper):
+    lower = Fraction(lower)
+    upper = Fraction(upper)
+    if degree(poly) < 1:
+        return []
+    chain = sturm_chain(poly)
+    count = root_count(chain, lower, upper)
+    if count <= 0:
+        return []
+    if count == 1:
+        return [(lower, upper)]
+    middle = (lower + upper) / 2
+    if evaluate(poly, middle) == 0:
+        reduced = divide_linear(poly, middle)
+        return sorted(
+            [(middle, middle)]
+            + isolate_by_sturm(reduced, lower, middle)
+            + isolate_by_sturm(reduced, middle, upper)
+        )
+    return sorted(
+        isolate_by_sturm(poly, lower, middle)
+        + isolate_by_sturm(poly, middle, upper)
+    )
+
+
+def peel_endpoints(poly, lower, upper):
+    boundary = []
+    work = poly
+    for point in (Fraction(lower), Fraction(upper)):
+        if degree(work) >= 1 and evaluate(work, point) == 0:
+            boundary.append((point, point))
+            work = divide_linear(work, point)
+    return work, boundary
+
+
+def shrink_open_bounds(poly, lower, upper):
+    chain = sturm_chain(poly)
+    total = root_count(chain, lower, upper)
+    if total <= 0:
+        return lower, upper
+    span = upper - lower
+    step = span / 2
+    new_lower = lower + step
+    while root_count(chain, new_lower, upper) < total:
+        step /= 2
+        new_lower = lower + step
+    step = span / 2
+    new_upper = upper - step
+    while root_count(chain, lower, new_upper) < total:
+        step /= 2
+        new_upper = upper - step
+    return new_lower, new_upper
+
+
+def collect_intervals(poly, lower, upper, isolator):
+    lower = Fraction(lower)
+    upper = Fraction(upper)
+    work, boundary = peel_endpoints(poly, lower, upper)
+    if degree(work) < 1:
+        return sorted(boundary)
+    if boundary:
+        lower, upper = shrink_open_bounds(work, lower, upper)
+    return sorted(boundary + isolator(work, lower, upper))
+
+
+def multiplicity_for(factors, lower, upper):
+    if lower == upper:
+        hits = [mult for factor, mult in factors if evaluate(factor, lower) == 0]
+    else:
+        hits = []
+        for factor, mult in factors:
+            if evaluate(factor, lower) * evaluate(factor, upper) < 0:
+                hits.append(mult)
+    if len(hits) != 1:
+        raise ArithmeticError("root interval does not identify one multiplicity")
+    return hits[0]
+
+
+def fraction_text(value):
+    value = Fraction(value)
+    if value.denominator == 1:
+        return str(value.numerator)
+    return f"{value.numerator}/{value.denominator}"
+
+
+def build_report(poly, lower, upper):
+    factors = square_free_factors(poly)
+    radical = [Fraction(1)]
+    for factor, _ in factors:
+        radical = multiply(radical, factor)
+    intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)
+    roots = []
+    for left, right in intervals:
+        multiplicity = multiplicity_for(factors, left, right)
+        roots.append(
+            {
+                "lower": fraction_text(left),
+                "upper": fraction_text(right),
+                "multiplicity": multiplicity,
+            }
+        )
+    return {
+        "roots": roots,
+        "distinct_count": len(roots),
+        "multiplicity_sum": sum(item["multiplicity"] for item in roots),
+    }
 
 
 def main(argv):
     if len(argv) != 2:
-        print("usage: python3 /app/main.py <readings.json>", file=sys.stderr)
+        print("usage: python3 /app/main.py <input.json>", file=sys.stderr)
         return 2
-    with open(argv[1], "r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    print(json.dumps(summarize(payload["readings"]), ensure_ascii=False))
+    try:
+        with open(argv[1], "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        coefficients = trim([Fraction(value) for value in payload["coefficients"]])
+        lower, upper = payload["interval"]
+        if len(coefficients) < 2 or coefficients[-1] == 0 or Fraction(lower) >= Fraction(upper):
+            return 2
+        report = build_report(coefficients, Fraction(lower), Fraction(upper))
+    except (OSError, ValueError, TypeError, KeyError, ArithmeticError):
+        return 2
+    print(json.dumps(report, ensure_ascii=False))
     return 0
 
 

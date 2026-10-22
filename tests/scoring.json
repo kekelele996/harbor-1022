@@ -1,18 +1,45 @@
 {
   "schema_version": 1,
   "gate_tests": [
-    "test_outputs.py::test_prints_json_with_three_fields",
+    "test_outputs.py::test_output_has_exact_schema",
     "test_outputs.py::test_wrong_argument_count_exits_2"
   ],
   "tests": {
-    "test_outputs.py::test_mean_rounds_half_up_two_thirds": {"weight": 0.14, "rationale": "难点1 均值舍入：汇总的核心数值，错了整张摘要不可用，难点合计 0.40"},
-    "test_outputs.py::test_mean_rounds_half_up_large_values": {"weight": 0.13, "rationale": "难点1 均值舍入：换一组量级确认不是只对单个样例"},
-    "test_outputs.py::test_mean_exact_half_cent_goes_up": {"weight": 0.13, "rationale": "难点1 均值舍入：恰好 0.005 的临界值，区分四舍五入与银行家舍入"},
-    "test_outputs.py::test_tie_picks_smallest_id": {"weight": 0.10, "rationale": "难点2 并列取最小编号：业务规则，难点合计 0.30"},
-    "test_outputs.py::test_three_way_tie_picks_smallest_id": {"weight": 0.10, "rationale": "难点2 并列取最小编号：三方并列且最小编号不在末尾"},
-    "test_outputs.py::test_negative_tie_picks_smallest_id": {"weight": 0.10, "rationale": "难点2 并列取最小编号：负数并列"},
-    "test_outputs.py::test_null_not_counted": {"weight": 0.10, "rationale": "难点3 null 不计入：缺测读数处理，难点合计 0.30"},
-    "test_outputs.py::test_null_never_becomes_maximum": {"weight": 0.10, "rationale": "难点3 null 不计入：全负读数时 null 不能被当成 0 选为最大"},
-    "test_outputs.py::test_mostly_null_count": {"weight": 0.10, "rationale": "难点3 null 不计入：多数读数缺测"}
+    "test_outputs.py::test_cubic_root_multiplicity": {
+      "weight": 0.14,
+      "rationale": "重数分组：三次重根，难点合计 0.40"
+    },
+    "test_outputs.py::test_quartic_root_multiplicity": {
+      "weight": 0.13,
+      "rationale": "重数分组：四次重根"
+    },
+    "test_outputs.py::test_fifth_root_multiplicity": {
+      "weight": 0.13,
+      "rationale": "重数分组：五次重根"
+    },
+    "test_outputs.py::test_lower_endpoint_root_is_included": {
+      "weight": 0.10,
+      "rationale": "闭区间端点：左端点恰为根，难点合计 0.30"
+    },
+    "test_outputs.py::test_upper_endpoint_root_is_included": {
+      "weight": 0.10,
+      "rationale": "闭区间端点：右端点恰为根"
+    },
+    "test_outputs.py::test_both_endpoint_roots_are_included": {
+      "weight": 0.10,
+      "rationale": "闭区间端点：两个端点同时为根"
+    },
+    "test_outputs.py::test_symmetric_roots_one_trillionth_apart": {
+      "weight": 0.10,
+      "rationale": "极近根隔离：对称双根且区间两端同号，难点合计 0.30"
+    },
+    "test_outputs.py::test_clustered_roots_near_one": {
+      "weight": 0.10,
+      "rationale": "极近根隔离：远离零点的十亿分之一间隔"
+    },
+    "test_outputs.py::test_three_roots_in_narrow_cluster": {
+      "weight": 0.10,
+      "rationale": "极近根隔离：三个根落在同一窄簇内"
+    }
   }
 }

@@ -1,18 +1,12 @@
-"""传感器读数汇总的验收测试（骨架示例，出题时整份替换成本题内容）。
+"""整数多项式实根清单的验收测试。
 
-写法约定（审核器 E1/E2/E5/E9 会逐条查）：
-- 每个 test_ 函数的 docstring 用「」原样引用题面里的一句话，引用必须能在 instruction.md 里找到；
-- 测试体里不写 if/try，分支和异常处理放在模块级辅助函数里；
-- 一个难点至少三个计分测试，每个只断言这个难点影响的字段，避免一个修复顺带让别的难点变绿；
-- 计分测试在原始（未修）代码上必须全部失败，否则 NOP 拿分；
-- gate 测试（入口能跑、参数错误退出码）写进 scoring.json 的 gate_tests，不计分。
-期望值来自 research/ 里的独立复核，不要用 solution/ 生成。
-
-本文件以 root 运行；被测程序一律通过 run_candidate() 以 runner 身份、干净环境变量、
-独立进程组运行，超时整组结束。
+每个计分测试只检查一个难点；期望根和重数由显式因子构造并在研究记录中复算。
+候选进程统一以 runner 身份、干净环境变量和独立进程组运行。
 """
 
+from fractions import Fraction
 import json
+from math import lcm
 import os
 import signal
 import subprocess
@@ -55,28 +49,79 @@ def run_candidate(*args, timeout=CALL_TIMEOUT_SEC):
     return subprocess.CompletedProcess(proc.args, proc.returncode, out, err)
 
 
-def summarize(readings):
-    """把隐藏输入写进随机命名的临时文件（候选只读），返回候选输出的 JSON。"""
-    folder = Path(tempfile.mkdtemp(prefix="in-"))
+def multiply(left, right):
+    result = [Fraction(0)] * (len(left) + len(right) - 1)
+    for i, a_value in enumerate(left):
+        for j, b_value in enumerate(right):
+            result[i + j] += a_value * b_value
+    return result
+
+
+def integer_polynomial(*factors):
+    result = [Fraction(1)]
+    for root, multiplicity in factors:
+        factor = [-Fraction(root), Fraction(1)]
+        for _ in range(multiplicity):
+            result = multiply(result, factor)
+    denominator = 1
+    for coefficient in result:
+        denominator = lcm(denominator, coefficient.denominator)
+    return [int(coefficient * denominator) for coefficient in result]
+
+
+def candidate_report(payload):
+    folder = Path(tempfile.mkdtemp(prefix="polynomial-"))
     folder.chmod(0o755)
-    case = folder / "readings.json"
-    case.write_text(json.dumps({"readings": readings}), encoding="utf-8")
+    case = folder / "input.json"
+    case.write_text(json.dumps(payload), encoding="utf-8")
     case.chmod(0o644)
     proc = run_candidate(case)
     assert proc.returncode == 0, f"exit={proc.returncode} stderr={proc.stderr[-500:]}"
     return json.loads(proc.stdout)
 
 
-def readings(*pairs):
-    return [{"id": rid, "value": value} for rid, value in pairs]
+def canonical_fraction(text):
+    value = Fraction(text)
+    expected = str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
+    assert text == expected
+    return value
+
+
+def assert_profile(report, search_interval, expected):
+    assert set(report) == {"roots", "distinct_count", "multiplicity_sum"}
+    roots = report["roots"]
+    assert isinstance(roots, list)
+    assert report["distinct_count"] == len(roots)
+    parsed = []
+    for item in roots:
+        assert set(item) == {"lower", "upper", "multiplicity"}
+        lower = canonical_fraction(item["lower"])
+        upper = canonical_fraction(item["upper"])
+        assert lower <= upper
+        assert Fraction(search_interval[0]) <= lower <= upper <= Fraction(search_interval[1])
+        assert isinstance(item["multiplicity"], int) and item["multiplicity"] >= 1
+        parsed.append((lower, upper, item["multiplicity"]))
+    assert parsed == sorted(parsed, key=lambda item: (item[0], item[1]))
+    for left, right in zip(parsed, parsed[1:]):
+        assert left[1] <= right[0]
+    expected_roots = [Fraction(root) for root, _ in expected]
+    for lower, upper, _ in parsed:
+        assert sum(lower <= root <= upper for root in expected_roots) == 1
+    for root, multiplicity in expected:
+        root = Fraction(root)
+        matches = [item for item in parsed if item[0] <= root <= item[1]]
+        assert len(matches) == 1
+        assert matches[0][2] == multiplicity
+    assert report["multiplicity_sum"] == sum(multiplicity for _, multiplicity in expected)
 
 
 # ---------- gate：入口与契约，不计分 ----------
 
-def test_prints_json_with_three_fields():
-    """「程序向标准输出写一个 JSON 对象，只含三个字段」"""
-    got = summarize(readings(("a1", 1.0), ("a2", 2.0)))
-    assert set(got) == {"count", "mean", "max_id"}
+def test_output_has_exact_schema():
+    """「程序向标准输出写一个 JSON 对象」"""
+    report = candidate_report({"coefficients": [-3, 0, 1], "interval": [-2, 2]})
+    assert set(report) == {"roots", "distinct_count", "multiplicity_sum"}
+    assert all(set(item) == {"lower", "upper", "multiplicity"} for item in report["roots"])
 
 
 def test_wrong_argument_count_exits_2():
@@ -86,53 +131,74 @@ def test_wrong_argument_count_exits_2():
     assert proc.stdout.strip() == ""
 
 
-# ---------- 难点 1：均值按四舍五入保留两位 ----------
+# ---------- 难点 1：重数分组 ----------
 
-def test_mean_rounds_half_up_two_thirds():
-    """「按四舍五入保留两位小数（0.005 进位）」"""
-    assert summarize(readings(("p1", 1), ("p2", 2), ("p3", 2)))["mean"] == 1.67
-
-
-def test_mean_rounds_half_up_large_values():
-    """「按四舍五入保留两位小数（0.005 进位）」"""
-    assert summarize(readings(("p1", 5), ("p2", 6), ("p3", 6)))["mean"] == 5.67
+def test_cubic_root_multiplicity():
+    """「同一实根出现多次时只列一次，并给出它的重数」"""
+    factors = [(Fraction(-7, 3), 3)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 4]})
+    assert_profile(report, [-4, 4], factors)
 
 
-def test_mean_exact_half_cent_goes_up():
-    """「按四舍五入保留两位小数（0.005 进位）」"""
-    assert summarize(readings(("p1", 0.125), ("p2", 0.125)))["mean"] == 0.13
+def test_quartic_root_multiplicity():
+    """「同一实根出现多次时只列一次，并给出它的重数」"""
+    factors = [(Fraction(7, 5), 4)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-2, 2]})
+    assert_profile(report, [-2, 2], factors)
 
 
-# ---------- 难点 2：并列最大值取字典序最小编号 ----------
-
-def test_tie_picks_smallest_id():
-    """「最大值并列时取编号字典序最小的那个」"""
-    assert summarize(readings(("a", 5), ("c", 5), ("b", 1)))["max_id"] == "a"
-
-
-def test_three_way_tie_picks_smallest_id():
-    """「最大值并列时取编号字典序最小的那个」"""
-    # 最小编号放在中间：只保留第一个或最后一个并列值的写法都过不了
-    assert summarize(readings(("z", 9), ("k", 9), ("m", 9)))["max_id"] == "k"
+def test_fifth_root_multiplicity():
+    """「同一实根出现多次时只列一次，并给出它的重数」"""
+    factors = [(Fraction(-5, 3), 5)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 3]})
+    assert_profile(report, [-4, 3], factors)
 
 
-def test_negative_tie_picks_smallest_id():
-    """「最大值并列时取编号字典序最小的那个」"""
-    assert summarize(readings(("p", -1), ("q", -1), ("r", -5)))["max_id"] == "p"
+# ---------- 难点 2：闭区间端点 ----------
+
+def test_lower_endpoint_root_is_included():
+    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
+    factors = [(Fraction(1), 1), (Fraction(3), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [1, 4]})
+    assert_profile(report, [1, 4], factors)
 
 
-# ---------- 难点 3：null 读数不计入 ----------
-
-def test_null_not_counted():
-    """「value 为 null 的读数不计入」"""
-    assert summarize(readings(("a", 1), ("b", None), ("c", 2)))["count"] == 2
-
-
-def test_null_never_becomes_maximum():
-    """「value 为 null 的读数不计入」"""
-    assert summarize(readings(("a", -3), ("b", None), ("c", -1)))["max_id"] == "c"
+def test_upper_endpoint_root_is_included():
+    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
+    factors = [(Fraction(-2), 1), (Fraction(1), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-3, 1]})
+    assert_profile(report, [-3, 1], factors)
 
 
-def test_mostly_null_count():
-    """「value 为 null 的读数不计入」"""
-    assert summarize(readings(("x", None), ("y", 4), ("z", None)))["count"] == 1
+def test_both_endpoint_roots_are_included():
+    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
+    factors = [(Fraction(-1), 1), (Fraction(1), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-1, 1]})
+    assert_profile(report, [-1, 1], factors)
+
+
+# ---------- 难点 3：极近根隔离 ----------
+
+def test_symmetric_roots_one_trillionth_apart():
+    """「即使两个根非常接近，也必须分别列出」"""
+    epsilon = Fraction(1, 10**12)
+    factors = [(-epsilon, 1), (epsilon, 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-1, 1]})
+    assert_profile(report, [-1, 1], factors)
+
+
+def test_clustered_roots_near_one():
+    """「即使两个根非常接近，也必须分别列出」"""
+    epsilon = Fraction(1, 10**9)
+    factors = [(1 - epsilon, 1), (1 + epsilon, 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 2]})
+    assert_profile(report, [0, 2], factors)
+
+
+def test_three_roots_in_narrow_cluster():
+    """「即使两个根非常接近，也必须分别列出」"""
+    epsilon = Fraction(1, 10**12)
+    center = Fraction(1, 3)
+    factors = [(center - epsilon, 1), (center, 1), (center + epsilon, 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
+    assert_profile(report, [0, 1], factors)
