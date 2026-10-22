@@ -1,8 +1,10 @@
 # 基础镜像按 digest 锁定；镜像已包含 Python、Node.js、curl 与 Claude Code 启动依赖。
 FROM adminfather/benzhi-claude-code2:20260919@sha256:6bc4ad09b1c450579b25e61e7c797328ebaf4ac4eb086c078d2ec1e9f7742046
 
-# 镜像默认用户是 node；Harbor 保活和评分清场需要 root 作为默认用户。
+# 镜像默认用户是 node，入口脚本会等待交互参数；Harbor 需要 root 和常驻命令。
 USER root
+ENTRYPOINT []
+CMD ["sleep", "infinity"]
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
