@@ -4,7 +4,7 @@
 """
 
 from fractions import Fraction
-from math import gcd, isqrt, lcm
+from math import ceil, gcd, isqrt, lcm
 import json
 import sys
 
@@ -286,6 +286,49 @@ def shrink_open_bounds(poly, lower, upper):
     return new_lower, new_upper
 
 
+FAREY_ORDER = 64
+
+
+def farey_sequence(lower, upper):
+    values = set()
+    for denominator in range(1, FAREY_ORDER + 1):
+        start = ceil(lower * denominator)
+        end = (upper * denominator).numerator // (upper * denominator).denominator
+        for numerator in range(start, end + 1):
+            if numerator and gcd(abs(numerator), denominator) != 1:
+                continue
+            values.add(Fraction(numerator, denominator))
+    values.add(Fraction(lower))
+    values.add(Fraction(upper))
+    return sorted(values)
+
+
+def farey_bracket(poly, left, right, sequence):
+    """返回 64 阶 Farey 序列中包含该根的一对相邻分数。"""
+    chain = sturm_chain(poly)
+    below = None
+    above = None
+    for candidate in sequence:
+        if candidate <= left:
+            below = candidate
+            continue
+        if candidate >= right:
+            above = candidate
+            break
+        if evaluate(poly, candidate) == 0:
+            return candidate, candidate
+        if root_count(chain, left, candidate) == 0:
+            below = candidate
+        else:
+            above = candidate
+            break
+    if below is None:
+        below = left
+    if above is None:
+        above = right
+    return below, above
+
+
 GRID_BITS = 40
 
 
@@ -359,8 +402,9 @@ def build_report(poly, lower, upper):
             roots.append((root, root, multiplicity))
             radical = divide_linear(radical, root)
     intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)
+    farey = farey_sequence(lower, upper)
     for left, right in intervals:
-        cell = dyadic_cell(radical, left, right)
+        cell = farey_bracket(radical, left, right, farey)
         roots.append((cell[0], cell[1], multiplicity_for(factors, left, right)))
     roots.sort(key=lambda item: (item[0], item[1]))
     output = [

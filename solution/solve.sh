@@ -20,7 +20,7 @@ REVERT = {
         "factors = legacy_factors(poly)",
     ),
     "difficulty_3": (
-        "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)\n    for left, right in intervals:\n        cell = dyadic_cell(radical, left, right)",
+        "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)\n    farey = farey_sequence(lower, upper)\n    for left, right in intervals:\n        cell = farey_bracket(radical, left, right, farey)",
         "intervals = collect_intervals(radical, lower, upper, isolate_by_signs)\n    for left, right in intervals:\n        cell = (left, right)",
     ),
 }

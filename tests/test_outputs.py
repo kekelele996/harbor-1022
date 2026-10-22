@@ -4,9 +4,10 @@
 候选进程统一以 runner 身份、干净环境变量和独立进程组运行。
 """
 
+from decimal import Decimal, getcontext
 from fractions import Fraction
 import json
-from math import isqrt, lcm
+from math import ceil, gcd, isqrt, lcm
 import os
 import signal
 import subprocess
@@ -117,21 +118,64 @@ def assert_profile(report, search_interval, expected, require_exact_rational=Fal
     assert report["multiplicity_sum"] == sum(multiplicity for _, multiplicity in expected)
 
 
-GRID_SCALE = 1 << 40
+FAREY_ORDER = 64
+getcontext().prec = 80
 
 
-def assert_grid_cell(report, expected_lower, expected_upper):
+def integer_from_factors(*factors):
+    result = [Fraction(1)]
+    for factor in factors:
+        result = multiply(result, factor)
+    denominator = 1
+    for coefficient in result:
+        denominator = lcm(denominator, coefficient.denominator)
+    return [int(coefficient * denominator) for coefficient in result]
+
+
+def farey_fractions(lower=Fraction(1), upper=Fraction(2)):
+    values = set()
+    for denominator in range(1, FAREY_ORDER + 1):
+        start = ceil(lower * denominator)
+        end = (upper * denominator).numerator // (upper * denominator).denominator
+        for numerator in range(start, end + 1):
+            if numerator and gcd(abs(numerator), denominator) != 1:
+                continue
+            values.add(Fraction(numerator, denominator))
+    values.add(lower)
+    values.add(upper)
+    return sorted(values)
+
+
+def farey_bracket_for_value(value, lower=Fraction(1), upper=Fraction(2)):
+    decimals = [(fraction, Decimal(fraction.numerator) / Decimal(fraction.denominator))
+                for fraction in farey_fractions(lower, upper)]
+    below = max((item for item in decimals if item[1] <= value), key=lambda item: item[1])
+    above = min((item for item in decimals if item[1] >= value), key=lambda item: item[1])
+    return below[0], above[0]
+
+
+def assert_farey_cell(report, value, multiplicity=1):
     roots = report["roots"]
     assert len(roots) == 1
     item = roots[0]
+    expected_lower, expected_upper = farey_bracket_for_value(value)
     assert canonical_fraction(item["lower"]) == expected_lower
     assert canonical_fraction(item["upper"]) == expected_upper
-    assert item["multiplicity"] == 1
+    assert item["multiplicity"] == multiplicity
 
 
-def square_root_cell(radicand):
-    index = isqrt(radicand * GRID_SCALE * GRID_SCALE)
-    return Fraction(index, GRID_SCALE), Fraction(index + 1, GRID_SCALE)
+def assert_farey_profile(report, values):
+    roots = report["roots"]
+    assert len(roots) == len(values)
+    expected = sorted((value, *farey_bracket_for_value(value)) for value in values)
+    parsed = sorted(
+        (canonical_fraction(item["lower"]), canonical_fraction(item["upper"]), item["multiplicity"])
+        for item in roots
+    )
+    for (value, lower, upper), (actual_lower, actual_upper, multiplicity) in zip(expected, parsed):
+        assert actual_lower == lower and actual_upper == upper
+        assert multiplicity == 1
+        assert Decimal(lower.numerator) / Decimal(lower.denominator) <= value <= Decimal(upper.numerator) / Decimal(upper.denominator)
 
 
 # ---------- gate：入口与契约，不计分 ----------
@@ -152,24 +196,24 @@ def test_wrong_argument_count_exits_2():
 
 # ---------- 难点 1：重数分组 ----------
 
-def test_rational_root_one_third_is_point():
+def test_rational_root_one_ninety_seventh_is_point():
     """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
-    factors = [(Fraction(1, 3), 1)]
+    factors = [(Fraction(1, 97), 1)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
     assert_profile(report, [0, 1], factors, require_exact_rational=True)
 
 
-def test_rational_root_seven_fifths_is_point():
+def test_rational_root_five_one_hundred_first_is_point():
     """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
-    factors = [(Fraction(7, 5), 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 2]})
+    factors = [(Fraction(5, 101), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
     assert_profile(report, [0, 2], factors, require_exact_rational=True)
 
 
-def test_rational_root_negative_five_thirds_is_point():
+def test_rational_root_negative_thirteen_one_hundred_third_is_point():
     """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
-    factors = [(Fraction(-5, 3), 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-2, 0]})
+    factors = [(Fraction(-13, 103), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-1, 0]})
     assert_profile(report, [-2, 0], factors, require_exact_rational=True)
 
 
@@ -219,38 +263,42 @@ def test_fifth_root_multiplicity():
     assert_profile(report, [-4, 3], factors)
 
 
-def test_symmetric_roots_one_trillionth_apart():
-    """「即使两个根非常接近，也必须分别列出」"""
-    epsilon = Fraction(1, 10**12)
-    factors = [(-epsilon, 1), (epsilon, 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-1, 1]})
-    assert_profile(report, [-1, 1], factors)
+def test_two_nearby_irrational_roots_use_farey():
+    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    root_shift = Fraction(1, 100)
+    coefficient = [root_shift * root_shift - 2, -2 * root_shift, 1]
+    report = candidate_report({"coefficients": integer_from_factors([-2, 0, 1], coefficient), "interval": [1, 2]})
+    sqrt_two = Decimal(2).sqrt()
+    assert_farey_profile(report, [sqrt_two, sqrt_two + Decimal("0.01")])
 
 
-def test_clustered_roots_near_one():
-    """「即使两个根非常接近，也必须分别列出」"""
-    epsilon = Fraction(1, 10**9)
-    factors = [(1 - epsilon, 1), (1 + epsilon, 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 2]})
-    assert_profile(report, [0, 2], factors)
+def test_clustered_irrational_roots_use_farey():
+    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    root_shift = Fraction(1, 200)
+    coefficient = [root_shift * root_shift - 2, -2 * root_shift, 1]
+    report = candidate_report({"coefficients": integer_from_factors([-2, 0, 1], coefficient), "interval": [1, 2]})
+    sqrt_two = Decimal(2).sqrt()
+    assert_farey_profile(report, [sqrt_two, sqrt_two + Decimal("0.005")])
 
 
-def test_sqrt_two_uses_dyadic_cell():
-    """「其余根使用固定的 2^-40 网格：`lower = m / 2^40`，`upper = (m + 1) / 2^40`，两者必须是相邻网格点」"""
+def test_sqrt_two_uses_farey_bracket():
+    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
     report = candidate_report({"coefficients": [-2, 0, 1], "interval": [1, 2]})
-    assert_grid_cell(report, *square_root_cell(2))
+    assert_farey_cell(report, Decimal(2).sqrt())
 
 
-def test_sqrt_three_uses_dyadic_cell():
-    """「其余根使用固定的 2^-40 网格：`lower = m / 2^40`，`upper = (m + 1) / 2^40`，两者必须是相邻网格点」"""
+def test_sqrt_three_uses_farey_bracket():
+    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
     report = candidate_report({"coefficients": [-3, 0, 1], "interval": [1, 2]})
-    assert_grid_cell(report, *square_root_cell(3))
+    assert_farey_cell(report, Decimal(3).sqrt())
 
 
-def test_three_roots_in_narrow_cluster():
-    """「即使两个根非常接近，也必须分别列出」"""
-    epsilon = Fraction(1, 10**12)
-    center = Fraction(1000001, 3000000)
-    factors = [(center - epsilon, 1), (center, 1), (center + epsilon, 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
-    assert_profile(report, [0, 1], factors)
+def test_three_irrational_roots_in_narrow_cluster():
+    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    first = Fraction(1, 100)
+    second = Fraction(2, 100)
+    factor_one = [first * first - 2, -2 * first, 1]
+    factor_two = [second * second - 2, -2 * second, 1]
+    report = candidate_report({"coefficients": integer_from_factors([-2, 0, 1], factor_one, factor_two), "interval": [1, 2]})
+    sqrt_two = Decimal(2).sqrt()
+    assert_farey_profile(report, [sqrt_two, sqrt_two + Decimal("0.01"), sqrt_two + Decimal("0.02")])
