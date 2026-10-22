@@ -5,41 +5,53 @@
     "test_outputs.py::test_wrong_argument_count_exits_2"
   ],
   "tests": {
+    "test_outputs.py::test_rational_root_one_third_is_point": {
+      "weight": 0.07,
+      "rationale": "精确有理根：分母 3，必须输出点区间；难点合计 0.40"
+    },
+    "test_outputs.py::test_rational_root_seven_fifths_is_point": {
+      "weight": 0.07,
+      "rationale": "精确有理根：分母 5"
+    },
+    "test_outputs.py::test_rational_root_negative_five_thirds_is_point": {
+      "weight": 0.06,
+      "rationale": "精确有理根：负分子与分母 3"
+    },
+    "test_outputs.py::test_lower_endpoint_root_is_included": {
+      "weight": 0.07,
+      "rationale": "闭区间左端点根必须精确列出"
+    },
+    "test_outputs.py::test_upper_endpoint_root_is_included": {
+      "weight": 0.07,
+      "rationale": "闭区间右端点根必须精确列出"
+    },
+    "test_outputs.py::test_both_endpoint_roots_are_included": {
+      "weight": 0.06,
+      "rationale": "双端点根同时出现"
+    },
     "test_outputs.py::test_cubic_root_multiplicity": {
-      "weight": 0.14,
-      "rationale": "重数分组：三次重根，难点合计 0.40"
+      "weight": 0.1,
+      "rationale": "重数分组：三次重根，难点合计 0.30"
     },
     "test_outputs.py::test_quartic_root_multiplicity": {
-      "weight": 0.13,
+      "weight": 0.1,
       "rationale": "重数分组：四次重根"
     },
     "test_outputs.py::test_fifth_root_multiplicity": {
-      "weight": 0.13,
+      "weight": 0.1,
       "rationale": "重数分组：五次重根"
     },
-    "test_outputs.py::test_lower_endpoint_root_is_included": {
-      "weight": 0.10,
-      "rationale": "闭区间端点：左端点恰为根，难点合计 0.30"
-    },
-    "test_outputs.py::test_upper_endpoint_root_is_included": {
-      "weight": 0.10,
-      "rationale": "闭区间端点：右端点恰为根"
-    },
-    "test_outputs.py::test_both_endpoint_roots_are_included": {
-      "weight": 0.10,
-      "rationale": "闭区间端点：两个端点同时为根"
-    },
     "test_outputs.py::test_symmetric_roots_one_trillionth_apart": {
-      "weight": 0.10,
-      "rationale": "极近根隔离：对称双根且区间两端同号，难点合计 0.30"
+      "weight": 0.1,
+      "rationale": "极近根隔离：对称双根，难点合计 0.30"
     },
     "test_outputs.py::test_clustered_roots_near_one": {
-      "weight": 0.10,
-      "rationale": "极近根隔离：远离零点的十亿分之一间隔"
+      "weight": 0.1,
+      "rationale": "极近根隔离：十亿分之一间隔"
     },
     "test_outputs.py::test_three_roots_in_narrow_cluster": {
-      "weight": 0.10,
-      "rationale": "极近根隔离：三个根落在同一窄簇内"
+      "weight": 0.1,
+      "rationale": "极近根隔离：三根簇"
     }
   }
 }

@@ -87,7 +87,7 @@ def canonical_fraction(text):
     return value
 
 
-def assert_profile(report, search_interval, expected):
+def assert_profile(report, search_interval, expected, require_exact_rational=False):
     assert set(report) == {"roots", "distinct_count", "multiplicity_sum"}
     roots = report["roots"]
     assert isinstance(roots, list)
@@ -112,6 +112,8 @@ def assert_profile(report, search_interval, expected):
         matches = [item for item in parsed if item[0] <= root <= item[1]]
         assert len(matches) == 1
         assert matches[0][2] == multiplicity
+        if require_exact_rational and root.denominator <= 1_000_000:
+            assert matches[0][0] == root and matches[0][1] == root
     assert report["multiplicity_sum"] == sum(multiplicity for _, multiplicity in expected)
 
 
@@ -133,8 +135,54 @@ def test_wrong_argument_count_exits_2():
 
 # ---------- 难点 1：重数分组 ----------
 
+def test_rational_root_one_third_is_point():
+    """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
+    factors = [(Fraction(1, 3), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
+    assert_profile(report, [0, 1], factors, require_exact_rational=True)
+
+
+def test_rational_root_seven_fifths_is_point():
+    """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
+    factors = [(Fraction(7, 5), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 2]})
+    assert_profile(report, [0, 2], factors, require_exact_rational=True)
+
+
+def test_rational_root_negative_five_thirds_is_point():
+    """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
+    factors = [(Fraction(-5, 3), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-2, 0]})
+    assert_profile(report, [-2, 0], factors, require_exact_rational=True)
+
+
+# ---------- 难点 2：闭区间端点 ----------
+
+def test_lower_endpoint_root_is_included():
+    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」「同一个输入跑两次，输出要一模一样」"""
+    factors = [(Fraction(1), 1), (Fraction(3), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [1, 4]})
+    assert_profile(report, [1, 4], factors, require_exact_rational=True)
+
+
+def test_upper_endpoint_root_is_included():
+    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
+    factors = [(Fraction(-2), 1), (Fraction(1), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-3, 1]})
+    assert_profile(report, [-3, 1], factors, require_exact_rational=True)
+
+
+def test_both_endpoint_roots_are_included():
+    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
+    factors = [(Fraction(-1), 1), (Fraction(1), 1)]
+    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-1, 1]})
+    assert_profile(report, [-1, 1], factors, require_exact_rational=True)
+
+
+# ---------- 难点 3：极近根隔离 ----------
+
 def test_cubic_root_multiplicity():
-    """「同一实根出现多次时只列一次，并给出它的重数」「区间端点用最简有理数表示：分母为正，整数不写 `/1`」"""
+    """「同一实根出现多次时只列一次，并给出它的重数」"""
     factors = [(Fraction(-7, 3), 3)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 4]})
     assert_profile(report, [-4, 4], factors)
@@ -153,31 +201,6 @@ def test_fifth_root_multiplicity():
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-4, 3]})
     assert_profile(report, [-4, 3], factors)
 
-
-# ---------- 难点 2：闭区间端点 ----------
-
-def test_lower_endpoint_root_is_included():
-    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」「同一个输入跑两次，输出要一模一样」"""
-    factors = [(Fraction(1), 1), (Fraction(3), 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [1, 4]})
-    assert_profile(report, [1, 4], factors)
-
-
-def test_upper_endpoint_root_is_included():
-    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
-    factors = [(Fraction(-2), 1), (Fraction(1), 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-3, 1]})
-    assert_profile(report, [-3, 1], factors)
-
-
-def test_both_endpoint_roots_are_included():
-    """「搜索区间是闭区间，落在左端点或右端点的根也要列出」"""
-    factors = [(Fraction(-1), 1), (Fraction(1), 1)]
-    report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-1, 1]})
-    assert_profile(report, [-1, 1], factors)
-
-
-# ---------- 难点 3：极近根隔离 ----------
 
 def test_symmetric_roots_one_trillionth_apart():
     """「即使两个根非常接近，也必须分别列出」"""
@@ -198,7 +221,7 @@ def test_clustered_roots_near_one():
 def test_three_roots_in_narrow_cluster():
     """「即使两个根非常接近，也必须分别列出」"""
     epsilon = Fraction(1, 10**12)
-    center = Fraction(1, 3)
+    center = Fraction(1000001, 3000000)
     factors = [(center - epsilon, 1), (center, 1), (center + epsilon, 1)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
     assert_profile(report, [0, 1], factors)

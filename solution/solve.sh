@@ -12,12 +12,12 @@ from pathlib import Path
 
 REVERT = {
     "difficulty_1": (
-        "factors = square_free_factors(poly)",
-        "factors = legacy_factors(poly)",
+        "for root in rational_roots_of_factor(factor):",
+        "for root in []:",
     ),
     "difficulty_2": (
-        "work, boundary = peel_endpoints(poly, lower, upper)",
-        "work, boundary = poly, []",
+        "factors = square_free_factors(poly)",
+        "factors = legacy_factors(poly)",
     ),
     "difficulty_3": (
         "intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)",

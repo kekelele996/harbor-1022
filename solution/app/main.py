@@ -4,8 +4,11 @@
 """
 
 from fractions import Fraction
+from math import gcd, isqrt, lcm
 import json
 import sys
+
+RATIONAL_DENOMINATOR_LIMIT = 1_000_000
 
 
 def trim(poly):
@@ -83,6 +86,60 @@ def evaluate(poly, value):
 
 def divide_linear(poly, root):
     return div_exact(poly, [-root, Fraction(1)])
+
+
+def integer_primitive(poly):
+    common_denominator = 1
+    for value in poly:
+        common_denominator = lcm(common_denominator, value.denominator)
+    integers = [int(value * common_denominator) for value in poly]
+    common = 0
+    for value in integers:
+        common = gcd(common, abs(value))
+    if common:
+        integers = [value // common for value in integers]
+    return trim([Fraction(value) for value in integers])
+
+
+def divisors_up_to(value, limit):
+    value = abs(value)
+    if value == 0:
+        return [1]
+    result = set()
+    root = min(isqrt(value), limit)
+    for divisor in range(1, root + 1):
+        if value % divisor == 0:
+            result.add(divisor)
+            partner = value // divisor
+            if partner <= limit:
+                result.add(partner)
+    return sorted(result)
+
+
+def rational_roots_of_factor(poly):
+    """返回分母有界的有理根；分母更大的点根留给区间隔离。"""
+    roots = []
+    work = trim(poly)
+    if degree(work) >= 1 and evaluate(work, 0) == 0:
+        roots.append(Fraction(0))
+        work = divide_linear(work, 0)
+    if degree(work) < 1:
+        return roots
+    primitive = integer_primitive(work)
+    constant = int(primitive[0])
+    leading = int(primitive[-1])
+    if constant == 0 or leading == 0:
+        return roots
+    numerators = divisors_up_to(constant, 10**6)
+    denominators = divisors_up_to(leading, RATIONAL_DENOMINATOR_LIMIT)
+    candidates = {Fraction(sign * numerator, denominator)
+                  for numerator in numerators
+                  for denominator in denominators
+                  for sign in (-1, 1)}
+    for candidate in sorted(candidates):
+        if evaluate(work, candidate) == 0 and candidate not in roots:
+            roots.append(candidate)
+    return sorted(roots)
 
 
 def legacy_factors(poly):
@@ -265,21 +322,31 @@ def build_report(poly, lower, upper):
     radical = [Fraction(1)]
     for factor, _ in factors:
         radical = multiply(radical, factor)
-    intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)
     roots = []
+    seen = set()
+    for factor, multiplicity in factors:
+        for root in rational_roots_of_factor(factor):
+            if not (lower <= root <= upper) or root in seen:
+                continue
+            seen.add(root)
+            roots.append((root, root, multiplicity))
+            radical = divide_linear(radical, root)
+    intervals = collect_intervals(radical, lower, upper, isolate_by_sturm)
     for left, right in intervals:
-        multiplicity = multiplicity_for(factors, left, right)
-        roots.append(
-            {
-                "lower": fraction_text(left),
-                "upper": fraction_text(right),
-                "multiplicity": multiplicity,
-            }
-        )
+        roots.append((left, right, multiplicity_for(factors, left, right)))
+    roots.sort(key=lambda item: (item[0], item[1]))
+    output = [
+        {
+            "lower": fraction_text(left),
+            "upper": fraction_text(right),
+            "multiplicity": multiplicity,
+        }
+        for left, right, multiplicity in roots
+    ]
     return {
-        "roots": roots,
-        "distinct_count": len(roots),
-        "multiplicity_sum": sum(item["multiplicity"] for item in roots),
+        "roots": output,
+        "distinct_count": len(output),
+        "multiplicity_sum": sum(item["multiplicity"] for item in output),
     }
 
 
