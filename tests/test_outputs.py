@@ -212,7 +212,7 @@ def assert_adaptive_farey_profile(report, values, point_roots, lower=Fraction(1)
 # ---------- gate：入口与契约，不计分 ----------
 
 def test_output_has_exact_schema():
-    """「程序向标准输出写一个 JSON 对象」「`roots` 的每一项只含三个字段」「每个 `[lower, upper]` 都必须落在 `[L, R]` 内，并且恰好包含一个不同的实根；相邻区间可以首尾相接，但不能交叠」"""
+    """「程序往标准输出写一个 JSON 对象」「`roots` 的每一项也只有三个字段」「每个 `[lower, upper]` 都必须落在 `[L, R]` 内，并且恰好包含一个不同的实根；相邻区间可以首尾相接，但不能交叠」"""
     report = candidate_report({"coefficients": [-3, 0, 1], "interval": [-2, 2]})
     assert set(report) == {"roots", "distinct_count", "multiplicity_sum"}
     assert all(set(item) == {"lower", "upper", "multiplicity"} for item in report["roots"])
@@ -228,21 +228,21 @@ def test_wrong_argument_count_exits_2():
 # ---------- 难点 1：重数分组 ----------
 
 def test_rational_root_one_ninety_seventh_is_point():
-    """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
+    """「只要根是有理数，就必须输出精确点区间，即 `lower == upper`」"""
     factors = [(Fraction(1, 97), 1)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
     assert_profile(report, [0, 1], factors, require_exact_rational=True)
 
 
 def test_rational_root_five_one_hundred_first_is_point():
-    """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
+    """「只要根是有理数，就必须输出精确点区间，即 `lower == upper`」"""
     factors = [(Fraction(5, 101), 1)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [0, 1]})
     assert_profile(report, [0, 2], factors, require_exact_rational=True)
 
 
 def test_rational_root_negative_thirteen_one_hundred_third_is_point():
-    """「根的分母不超过 1000000 时，必须输出精确点区间，即 `lower == upper`」"""
+    """「只要根是有理数，就必须输出精确点区间，即 `lower == upper`」"""
     factors = [(Fraction(-13, 103), 1)]
     report = candidate_report({"coefficients": integer_polynomial(*factors), "interval": [-1, 0]})
     assert_profile(report, [-2, 0], factors, require_exact_rational=True)
@@ -302,7 +302,7 @@ def test_fifth_root_multiplicity():
 
 
 def test_two_nearby_irrational_roots_use_farey():
-    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    """「无理根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
     root_shift = Fraction(1, 100)
     coefficient = [root_shift * root_shift - 2, -2 * root_shift, 1]
     report = candidate_report({"coefficients": integer_from_factors([-2, 0, 1], coefficient), "interval": [1, 2]})
@@ -311,7 +311,7 @@ def test_two_nearby_irrational_roots_use_farey():
 
 
 def test_clustered_irrational_roots_use_farey():
-    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    """「无理根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
     root_shift = Fraction(1, 200)
     coefficient = [root_shift * root_shift - 2, -2 * root_shift, 1]
     report = candidate_report({"coefficients": integer_from_factors([-2, 0, 1], coefficient), "interval": [1, 2]})
@@ -336,19 +336,19 @@ def test_farey_refines_past_point_root():
 
 
 def test_sqrt_two_uses_farey_bracket():
-    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    """「无理根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
     report = candidate_report({"coefficients": [-2, 0, 1], "interval": [1, 2]})
     assert_farey_cell(report, Decimal(2).sqrt())
 
 
 def test_sqrt_three_uses_farey_bracket():
-    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    """「无理根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
     report = candidate_report({"coefficients": [-3, 0, 1], "interval": [1, 2]})
     assert_farey_cell(report, Decimal(3).sqrt())
 
 
 def test_three_irrational_roots_in_narrow_cluster():
-    """「其余根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
+    """「无理根使用 64 阶 Farey 序列：`lower` 和 `upper` 必须是该序列中包含根的一对相邻分数」"""
     first = Fraction(1, 100)
     second = Fraction(2, 100)
     factor_one = [first * first - 2, -2 * first, 1]
