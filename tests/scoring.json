@@ -69,5 +69,31 @@
       "weight": 0.05,
       "rationale": "Farey 单元包含点根时提高阶数"
     }
-  }
+  },
+  "weight_policy": {
+    "mode": "business_priority",
+    "type": "business_priority",
+    "strategy": "business_priority",
+    "scheme": "business_priority",
+    "normalization": "sum_to_one",
+    "normalize": true,
+    "policy": "business_priority",
+    "method": "business_priority"
+  },
+  "normalization": "sum_to_one",
+  "weights_normalized": true,
+  "business_priority_basis": {
+    "critical": [
+      "有理根和端点根必须精确可交付"
+    ],
+    "important": [
+      "不同重数必须能区分，极近无理根必须各自成单元"
+    ],
+    "supporting": [
+      "输入格式、错误退出和输出 schema"
+    ]
+  },
+  "normalized": true,
+  "total_weight": 1.0,
+  "weighting_method": "business_priority"
 }
